@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (email, password) => {
-    const res = await axios.post('/api/auth/login', { email, password });
+    const res = await axios.post('https://gym-management-system-8f4n.onrender.com/api/auth/login', { email, password });
     const { token, user } = res.data;
     localStorage.setItem('token', token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (name, email, password, role) => {
-    const res = await axios.post('/api/auth/signup', { name, email, password, role });
+    const res = await axios.post('https://gym-management-system-8f4n.onrender.com/api/auth/signup', { name, email, password, role });
     const { token, user } = res.data;
     localStorage.setItem('token', token);
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
