@@ -135,13 +135,10 @@ Follow the same CRUD pattern as Members.
 
 ---
 
-## 📸 Screenshots
-*(Add screenshots after running the app)*
 
----
 
 ## 👨‍💻 Author
-- **Student Name:** ___________________
-- **Roll Number:** ___________________
+- **Student Name:** Rushikesh Sitaphale and Shubham kusnure
+- **Roll Number:** SA139,SA144
 - **GitHub:** https://github.com/YOUR_USERNAME/gym-management
 - **Live App:** https://your-app.vercel.app
