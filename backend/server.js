@@ -7,11 +7,26 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
+// ✅ CORS FIX (IMPORTANT)
+const allowedOrigins = [
+  'http://localhost:3000',
+  process.env.CLIENT_URL, // your Vercel URL
+];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('CORS not allowed'));
+    }
+  },
   credentials: true
 }));
+
 app.use(express.json());
 
 // Routes
@@ -26,9 +41,9 @@ app.get('/', (req, res) => {
   res.json({ message: 'Gym Management API is running' });
 });
 
-// Connect to MongoDB and start server
+// DB + Server
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/gymdb';
+const MONGO_URI = process.env.MONGO_URI;
 
 mongoose.connect(MONGO_URI)
   .then(() => {
