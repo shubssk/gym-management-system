@@ -7,27 +7,21 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CORS FIX (IMPORTANT)
-const allowedOrigins = [
-  'http://localhost:3000',
-  process.env.CLIENT_URL, // your Vercel URL
-];
 
+// ✅ CORS CONFIG (FIXED FOR VERCEL + RENDER)
 app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like Postman)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('CORS not allowed'));
-    }
-  },
+  origin: [
+    "http://localhost:3000",
+    "https://gym-management-system-mu-smoky.vercel.app"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
 
+
+// Middleware
 app.use(express.json());
+
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -36,21 +30,30 @@ app.use('/api/trainers', require('./routes/trainers'));
 app.use('/api/plans', require('./routes/plans'));
 app.use('/api/attendance', require('./routes/attendance'));
 
+
 // Health check
 app.get('/', (req, res) => {
   res.json({ message: 'Gym Management API is running' });
 });
 
-// DB + Server
+
+// Port & DB
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('MongoDB connected');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
+
+// Connect DB and start server
+mongoose.connect(MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => {
+  console.log('✅ MongoDB connected');
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
   });
+})
+.catch(err => {
+  console.error('❌ MongoDB connection error:', err);
+  process.exit(1);
+});
