@@ -11,17 +11,34 @@ export default function Attendance() {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
 
+  const API = import.meta.env.VITE_API_URL;
+
   const fetchData = async () => {
     setLoading(true);
     try {
       const [attRes, memRes] = await Promise.all([
-        axios.get('/api/attendance', { params: { date: dateFilter } }),
-        axios.get('/api/members'),
+        axios.get(`${API}/api/attendance`, { params: { date: dateFilter } }),
+        axios.get(`${API}/api/members`),
       ]);
-      setRecords(attRes.data);
-      setMembers(memRes.data);
-    } catch { toast.error('Failed to load attendance'); }
-    finally { setLoading(false); }
+
+      // ✅ SAFE HANDLING
+      const attendanceData = Array.isArray(attRes.data)
+        ? attRes.data
+        : attRes.data?.data || [];
+
+      const membersData = Array.isArray(memRes.data)
+        ? memRes.data
+        : memRes.data?.data || [];
+
+      setRecords(attendanceData);
+      setMembers(membersData);
+
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load attendance');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, [dateFilter]);
@@ -29,41 +46,56 @@ export default function Attendance() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.member) return toast.error('Select a member');
+
     setSaving(true);
     try {
-      const res = await axios.post('/api/attendance', form);
-      setRecords([res.data, ...records]);
+      const res = await axios.post(`${API}/api/attendance`, form);
+
+      const newRecord = res.data?.data || res.data;
+
+      setRecords(prev => [newRecord, ...prev]);
       setShowModal(false);
       setForm({ member: '', checkIn: '', checkOut: '', status: 'Present' });
+
       toast.success('Attendance marked!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error marking attendance');
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this record?')) return;
     try {
-      await axios.delete(`/api/attendance/${id}`);
-      setRecords(records.filter(r => r._id !== id));
+      await axios.delete(`${API}/api/attendance/${id}`);
+      setRecords(prev => prev.filter(r => r._id !== id));
       toast.success('Record deleted');
-    } catch { toast.error('Failed to delete'); }
+    } catch {
+      toast.error('Failed to delete');
+    }
   };
 
-  const present = records.filter(r => r.status === 'Present').length;
-  const absent = records.filter(r => r.status === 'Absent').length;
+  // ✅ SAFE FILTERING
+  const safeRecords = Array.isArray(records) ? records : [];
+
+  const present = safeRecords.filter(r => r.status === 'Present').length;
+  const absent = safeRecords.filter(r => r.status === 'Absent').length;
 
   return (
     <div>
       <div className="page-header">
         <h2>✅ Attendance</h2>
-        <button className="btn btn-primary" style={{width:'auto'}} onClick={() => setShowModal(true)}>+ Mark Attendance</button>
+        <button className="btn btn-primary" style={{ width: 'auto' }} onClick={() => setShowModal(true)}>
+          + Mark Attendance
+        </button>
       </div>
 
-      <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:20}}>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
         <div className="stat-card">
           <div className="stat-icon blue">📅</div>
-          <div className="stat-info"><h3>{records.length}</h3><p>Total Today</p></div>
+          <div className="stat-info"><h3>{safeRecords.length}</h3><p>Total Today</p></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon green">✅</div>
@@ -75,57 +107,69 @@ export default function Attendance() {
         </div>
       </div>
 
+      {/* Filter */}
       <div className="table-controls">
-        <input type="date" className="search-input" style={{flex:'none',width:'auto'}}
-          value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+        <input
+          type="date"
+          className="search-input"
+          style={{ flex: 'none', width: 'auto' }}
+          value={dateFilter}
+          onChange={e => setDateFilter(e.target.value)}
+        />
       </div>
 
+      {/* Table */}
       <div className="table-wrapper">
-        {loading ? <div className="empty-state"><div className="spinner"></div></div>
-          : records.length === 0 ? (
-            <div className="empty-state"><span className="empty-icon">📅</span><p>No attendance records for this date.</p></div>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Date</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map(r => (
-                  <tr key={r._id}>
-                    <td>
-                      <div style={{display:'flex',alignItems:'center',gap:10}}>
-                        <div className="member-avatar-sm">{r.member?.name?.[0] || '?'}</div>
-                        <div>
-                          <div style={{fontWeight:600}}>{r.member?.name || 'Unknown'}</div>
-                          <div style={{fontSize:12,color:'#888'}}>{r.member?.phone}</div>
-                        </div>
+        {loading ? (
+          <div className="empty-state"><div className="spinner"></div></div>
+        ) : safeRecords.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-icon">📅</span>
+            <p>No attendance records for this date.</p>
+          </div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Date</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {safeRecords.map(r => (
+                <tr key={r._id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="member-avatar-sm">{r.member?.name?.[0] || '?'}</div>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{r.member?.name || 'Unknown'}</div>
+                        <div style={{ fontSize: 12, color: '#888' }}>{r.member?.phone}</div>
                       </div>
-                    </td>
-                    <td>{new Date(r.date).toLocaleDateString('en-IN')}</td>
-                    <td>{r.checkIn || '—'}</td>
-                    <td>{r.checkOut || '—'}</td>
-                    <td>
-                      <span className={`badge ${r.status === 'Present' ? 'badge-active' : 'badge-expired'}`}>
-                        {r.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r._id)}>🗑️</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                    </div>
+                  </td>
+                  <td>{new Date(r.date).toLocaleDateString('en-IN')}</td>
+                  <td>{r.checkIn || '—'}</td>
+                  <td>{r.checkOut || '—'}</td>
+                  <td>
+                    <span className={`badge ${r.status === 'Present' ? 'badge-active' : 'badge-expired'}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r._id)}>🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
+      {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
@@ -133,36 +177,62 @@ export default function Attendance() {
               <h3>Mark Attendance</h3>
               <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
             </div>
+
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group">
                   <label>Select Member *</label>
-                  <select value={form.member} onChange={e => setForm({...form, member: e.target.value})} required>
+                  <select
+                    value={form.member}
+                    onChange={e => setForm({ ...form, member: e.target.value })}
+                    required
+                  >
                     <option value="">Choose member...</option>
-                    {members.map(m => <option key={m._id} value={m._id}>{m.name} — {m.phone}</option>)}
+                    {members.map(m => (
+                      <option key={m._id} value={m._id}>
+                        {m.name} — {m.phone}
+                      </option>
+                    ))}
                   </select>
                 </div>
+
                 <div className="form-row">
                   <div className="form-group">
                     <label>Check In Time</label>
-                    <input type="time" value={form.checkIn} onChange={e => setForm({...form, checkIn: e.target.value})} />
+                    <input
+                      type="time"
+                      value={form.checkIn}
+                      onChange={e => setForm({ ...form, checkIn: e.target.value })}
+                    />
                   </div>
+
                   <div className="form-group">
                     <label>Check Out Time</label>
-                    <input type="time" value={form.checkOut} onChange={e => setForm({...form, checkOut: e.target.value})} />
+                    <input
+                      type="time"
+                      value={form.checkOut}
+                      onChange={e => setForm({ ...form, checkOut: e.target.value })}
+                    />
                   </div>
                 </div>
+
                 <div className="form-group">
                   <label>Status</label>
-                  <select value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+                  <select
+                    value={form.status}
+                    onChange={e => setForm({ ...form, status: e.target.value })}
+                  >
                     <option>Present</option>
                     <option>Absent</option>
                   </select>
                 </div>
               </div>
+
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{width:'auto'}} disabled={saving}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ width: 'auto' }} disabled={saving}>
                   {saving ? 'Saving...' : 'Mark Attendance'}
                 </button>
               </div>
