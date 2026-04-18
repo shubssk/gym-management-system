@@ -51,7 +51,8 @@ export default function Dashboard() {
           <h3>👥 Recent Members</h3>
           {members.length === 0 ? (
             <div className="empty-state"><span className="empty-icon">👤</span><p>No members yet</p></div>
-          ) : members.map(m => (
+          ) : console.log("DATA:", n);
+            members.map(m => (
             <div key={m._id} className="member-list-item">
               <div className="member-avatar-sm">{m.name[0]}</div>
               <div className="member-list-info">
